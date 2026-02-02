@@ -27,6 +27,16 @@ env/
 *.db-wal
 *.db-shm
 
+# Local skill installations (created by npx skills add)
+.agents/
+.claude/
+.cursor/
+.gemini/
+.opencode/
+
+# Session handoff (not for public repo)
+HANDOFF.md
+
 # OS
 .DS_Store
 Thumbs.db
