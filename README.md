@@ -8,43 +8,115 @@ Ask "what did I try last time I debugged webhooks?" and get an actual answer.
 
 ---
 
-## What it does
-
-1. **Indexes** all your Claude Code sessions into SQLite with FTS5 full-text search
-2. **Searches** by content, client, project, tool, agent, tag, or date — results in milliseconds
-3. **Retrieves context** — read actual conversation exchanges (user + assistant), not just metadata
-4. **Analyzes** your usage — time per client, tool trends, session frequency, topic patterns
-5. **Synthesizes** across sessions — "What approaches have I tried for X?" via Haiku (optional)
-6. **Tracks topics** live during sessions via Claude Code hooks
-
 ## Quick start
 
 ```bash
 pip install claude-session-index
-
-# Search for anything — indexing happens automatically on first run
-sessions "webhook debugging"
-
-# See your analytics
-sessions analytics --week
 ```
 
-The first time you run any command, it automatically indexes all your existing sessions. No separate setup step. After that, searches return in milliseconds.
+Then copy the skill into your Claude Code project:
+
+```bash
+cp skill/SKILL.md .claude/skills/session-index.md
+```
+
+That's it. The first time you ask a question, it auto-indexes all your existing sessions. After that, queries return in milliseconds.
 
 ---
 
-## See it in action
+## How it works (for you)
 
-All examples below are from a real system with 2,900+ indexed sessions.
+The interface is your Claude Code conversation. You ask questions naturally, Claude translates them into searches, and gives you conversational answers.
 
-### "What sessions mention silent failures?"
+### "Didn't we discuss browser control recently?"
 
-You type:
+Claude searches your sessions, finds the matches, and tells you:
+
+> You discussed browser control in 3 sessions last week. The most relevant was on Jan 18 where you figured out that synthetic MouseEvent dispatch bypasses the framework's event handling. The key insight was that the submit button was a `<div>`, not a `<button>`.
+>
+> → `claude --resume a5b111c6-dca0-4ee9-b237-74b75baf13cd`
+
+### "What have I tried for form automation? What actually worked?"
+
+Claude searches across sessions, extracts the relevant conversations, and synthesizes:
+
+> **Approaches tried:** element.click() → failed (framework intercepts). Coordinate-based clicking → failed (dynamic elements). Synthetic MouseEvent dispatch → success.
+>
+> **What worked:** Native OS-level clicking for all button interaction. Persistent browser profiles for session continuity.
+>
+> **What failed:** All JavaScript-based clicking — the framework intercepts and blocks it.
+>
+> Sources: 5 sessions spanning Jan 10–Feb 1
+> → `claude --resume abc123...`
+> → `claude --resume def456...`
+
+### "How did I spend my week?"
+
+> 89 sessions this week. 302 hours total.
+>
+> Windmill Labs: 2 sessions, 47h
+> GridSync: 2 sessions, 17h
+> NovaTech: 4 sessions, 7h
+>
+> Top tools: Bash (3,214), Read (2,126), Edit (1,718)
+> Task agent usage up 142% from last week.
+
+Every answer includes `claude --resume` links so you can jump straight back into any session.
+
+---
+
+## What it does under the hood
+
+1. **Indexes** all your Claude Code sessions into SQLite with FTS5 full-text search
+2. **Searches** by content, client, project, tool, agent, tag, or date — results in milliseconds
+3. **Retrieves context** — actual conversation exchanges (user + assistant), not just metadata
+4. **Analyzes** your usage — time per client, tool trends, session frequency, topic patterns
+5. **Synthesizes** across sessions — "What approaches have I tried for X?" via in-session Haiku subagent (no extra API cost)
+6. **Tracks topics** live during sessions via Claude Code hooks
+
+---
+
+## The CLI
+
+The skill handles the conversational interface. But if you want direct access from a terminal, everything goes through `sessions`:
+
 ```bash
-sessions "silent failure"
+# Search — just type what you're looking for
+sessions "webhook debugging"
+sessions "webhook" --context              # with conversation excerpts
+
+# Browse a conversation
+sessions context <id> "term"              # exchanges matching a term
+sessions context <id>                     # all exchanges
+
+# Analytics
+sessions analytics                        # overall stats
+sessions analytics --client "Acme"        # per-client
+sessions analytics --week                 # this week
+sessions analytics --month                # this month
+
+# Synthesis (requires anthropic package + API key for standalone use)
+sessions synthesize "topic"               # cross-session intelligence
+
+# Browse & filter
+sessions recent 20                        # last N sessions
+sessions find --client "Acme"             # filter by client
+sessions find --tool Task --week          # filter by tool + date
+sessions topics <session_id>              # topic timeline
+sessions tools                            # top tools across sessions
+sessions stats                            # database overview
+
+# Indexing
+sessions index                            # index new/modified sessions
+sessions index --backfill                 # re-index everything
 ```
 
-You get:
+Plain text defaults to search — `sessions "webhook debugging"` just works, no subcommand needed.
+
+### CLI output
+
+Search results look like this:
+
 ```
 🔍 3 results for "silent failure"
 
@@ -60,33 +132,21 @@ You get:
     → claude --resume 7b22239e-9f90-466f-ad92-849840b2a6fd
 ```
 
-Every result has a `→ claude --resume` command ready to copy — jump straight back into that session.
+Conversation context shows the actual chat:
 
-### "Show me what was actually said in that session"
-
-You type:
-```bash
-sessions context a5b111c6 "failure"
-```
-
-You get the actual conversation back, formatted like a chat:
 ```
 ╭─── Build automation debugging ─────────────────
 │ 2026-01-20 · my-project · 96 exchanges · 7min
 │ → claude --resume a5b111c6-dca0-4ee9-b237-74b75baf13cd
 ╰────────────────────────────────────────────────
 
-Matching exchanges for "failure":
-
   ┌─ Jan 20, 19:14 ──────────────────────────────
   │
   │  🧑 Breakthrough session. Successfully submitted forms #32 and #33
   │     using synthetic MouseEvent dispatch to bypass the framework's
-  │     event handling. Key learning: the submit button is a DIV with
-  │     class 'action-button', NOT a <button> tag.
+  │     event handling.
   │
-  │  🤖 I'll process these findings. Let me search for existing
-  │     patterns related to the framework and event handling...
+  │  🤖 I'll process these findings. Let me search for existing patterns...
   │     [Grep: framework|zone\.js|MouseEvent|click]
   │     [Read: /path/to/automation/docs.md]
   │
@@ -95,136 +155,11 @@ Matching exchanges for "failure":
 
 Tool calls get collapsed into readable one-liners — `[Read: path]`, `[Edit: path]`, `[Bash: command]`, `[Task: "description" → agent]` — so you can follow the conversation without drowning in JSON.
 
-### "How did I spend my week?"
-
-You type:
-```bash
-sessions analytics --week
-```
-
-You get:
-```
-Session analytics — this week
-══════════════════════════════════════════════════
-
-  📊 89 sessions · 302.8h total · avg 204min/session · avg 340 exchanges
-
-  ⏱  Time per client
-  ──────────────────────────────────────────────
-  Windmill Labs                 2 sessions    47.7h  avg 250 exchanges
-  GridSync                      2 sessions    17.2h  avg 269 exchanges
-  NovaTech                      4 sessions     7.3h  avg 212 exchanges
-
-  📈 Daily trend (last 14 days)
-  ──────────────────────────────────────────────
-  2026-01-20   18 sessions   57.2h  ████████████████████████████████████████
-  2026-01-21   16 sessions   76.0h  ████████████████████████████████████████
-  2026-01-22    6 sessions    7.9h  ███████████████████████████████
-  2026-01-28    8 sessions   50.1h  ████████████████████████████████████████
-  2026-01-29   21 sessions   40.9h  ████████████████████████████████████████
-  2026-01-30   16 sessions  122.2h  ████████████████████████████████████████
-  2026-02-01   18 sessions   34.5h  ████████████████████████████████████████
-
-  🔧 Top tools
-  ──────────────────────────────────────────────
-  Bash                         3214 uses  (46 sessions)
-  Read                         2126 uses  (83 sessions)
-  Edit                         1718 uses  (71 sessions)
-  Task                          218 uses  (21 sessions)
-
-  📊 Tool trends (this week vs last)
-  ──────────────────────────────────────────────
-  Task                         218 (was    90)  ↑ 142%
-  Skill                         24 (was     7)  ↑ 243%
-  Edit                        1718 (was   818)  ↑ 110%
-  WebFetch                      60 (was   125)  ↓ 52%
-```
-
-Filter by client (`--client "Windmill Labs"`), project (`--project myapp`), or time (`--month`).
-
-### "What have I tried for form automation? What actually worked?"
-
-You type:
-```bash
-sessions synthesize "form automation debugging"
-```
-
-The tool searches your sessions, pulls out the relevant conversations, and synthesizes an answer across all of them:
-
-```
-Cross-session synthesis — "form automation debugging"
-══════════════════════════════════════════════════════
-
-  📚 Sources (5 sessions, 5 with matching exchanges)
-
-    2026-01-10  Build automation system — initial 4-module architecture
-             → claude --resume abc123...
-    2026-01-15  Form submission debugging — element selectors
-             → claude --resume def456...
-    2026-01-18  Breakthrough — synthetic events bypass framework
-             → claude --resume ghi789...
-    2026-01-20  Documentation + QA hardening
-             → claude --resume jkl012...
-    2026-02-01  Phase 2 — 14 files, 4,200 lines, QA swarm
-             → claude --resume mno345...
-
-  ────────────────────────────────────────────────
-
-Approaches tried: element.click() → failed (framework intercepts).
-Coordinate-based clicking → failed (dynamic elements). Synthetic
-MouseEvent dispatch → success (bypasses framework event handling).
-
-What worked: Native OS-level clicking for all button interaction.
-Key insight: submit button was a <div>, not a <button>. Persistent
-browser profiles for session continuity.
-
-What failed: All JavaScript-based clicking (framework intercepts
-and blocks). Manual fallback rejected as philosophy: "figure out how
-to automate it, not do it manually."
-
-Recurring patterns: Framework as persistent blocker. DOM inspection
-before strategy selection. Iterative QA hardening (20 rounds → swarm).
-Scaling from 4 modules → 14 files across 7 agents.
-
-Current state: Phase 2 complete. End-to-end test passed. 7-day
-autonomous validation running.
-```
-
-That answer was synthesized from 5 different sessions spanning 3 weeks. Each source session has a `claude --resume` link so you can jump back into any of them.
-
-Synthesis requires the `anthropic` package and an API key for standalone CLI use:
-
-```bash
-pip install claude-session-index[synthesis]
-export ANTHROPIC_API_KEY=sk-...
-```
-
-**If you're already in a Claude Code session**, you can skip the API cost entirely. The skill instructs Claude to search, extract, and synthesize using an in-session Haiku subagent — no external API call needed.
-
----
-
-## All the ways to search
-
-```bash
-sessions "query"                           # search — just type what you're looking for
-sessions "query" --context                 # search with conversation excerpts inline
-sessions find --client "Acme"              # filter by client
-sessions find --tool Task --week           # filter by tool + date
-sessions find --project myapp              # filter by project
-sessions recent 20                         # last N sessions
-sessions topics <session_id>               # topic timeline for a session
-sessions tools                             # top tools across all sessions
-sessions tools "Bash"                      # sessions using a specific tool
-sessions stats                             # database overview
-```
-
 ---
 
 ## Live topic tracking
 
-Capture what you're working on during sessions via Claude Code hooks. Topics appear in your statusLine and get indexed for search.
-
-### Setup hooks
+Capture what you're working on during sessions via Claude Code hooks. Topics get indexed for search.
 
 Add to `~/.claude/settings.json` (or merge with your existing hooks):
 
@@ -268,10 +203,7 @@ Add to `~/.claude/settings.json` (or merge with your existing hooks):
 }
 ```
 
-Topics are captured:
-- **Every 10 exchanges** during a session (periodic)
-- **Before compaction** (last chance before context is summarized)
-- **At session end** (final topic + full re-index)
+Topics are captured every 10 exchanges, before compaction, and at session end.
 
 ### Background indexing (macOS)
 
@@ -284,22 +216,6 @@ launchctl load ~/Library/LaunchAgents/com.session-indexer.plist
 ```
 
 Runs `session-index --incremental` every 30 minutes. Only processes new or modified sessions.
-
----
-
-## Claude Code skill
-
-For natural language access within Claude Code sessions, install as a skill:
-
-```bash
-# From your project directory
-cp skill/SKILL.md .claude/skills/session-index.md
-```
-
-Then ask Claude things like:
-- "Search my sessions for webhook debugging"
-- "Show me analytics for this week"
-- "What have I tried for database migrations?"
 
 ---
 
@@ -342,14 +258,14 @@ Works out of the box with sensible defaults. All paths are configurable.
 
 ---
 
-## How it works
+## How it works (technically)
 
 ```
-~/.claude/projects/          session-index              Your queries
+~/.claude/projects/          session-index              Your conversation
   ├── -project-a/              ┌──────────┐
-  │   ├── abc123.jsonl ──────▶│ SQLite   │◀──── sessions "webhook debugging"
-  │   └── def456.jsonl ──────▶│ + FTS5   │◀──── sessions analytics --week
-  ├── -project-b/              └──────────┘◀──── sessions context abc123
+  │   ├── abc123.jsonl ──────▶│ SQLite   │◀──── "Didn't we discuss X?"
+  │   └── def456.jsonl ──────▶│ + FTS5   │◀──── "How'd I spend my week?"
+  ├── -project-b/              └──────────┘◀──── "What worked for Y?"
   │   └── ghi789.jsonl ──────▶     │
   └── ...                          │
                                    ▼
@@ -370,46 +286,6 @@ The indexer parses JSONL files once, extracts metadata (timestamps, tools, agent
 - **Python 3.10+** — stdlib only for core features (no dependencies)
 - **SQLite + FTS5** — fast full-text search, no server needed
 - **Anthropic SDK** — optional, only for standalone `synthesize` command
-
----
-
-## All commands
-
-Everything goes through `sessions`. Plain text defaults to search.
-
-```bash
-# Search
-sessions "query"                      # just type what you're looking for
-sessions "query" --context            # with conversation excerpts
-
-# Browse a conversation
-sessions context <id> "term"          # exchanges matching a term
-sessions context <id>                 # all exchanges
-
-# Analytics
-sessions analytics                    # overall stats
-sessions analytics --client X         # per-client
-sessions analytics --week             # this week
-sessions analytics --month            # this month
-
-# Synthesis
-sessions synthesize "topic"           # cross-session intelligence
-sessions synthesize "topic" --limit 5
-
-# Browse & filter
-sessions recent 20                    # last N sessions
-sessions find --client X              # filter by client
-sessions find --tool Task --week      # filter by tool + date
-sessions topics <session_id>          # topic timeline
-sessions tools                        # top tools across sessions
-sessions stats                        # database overview
-
-# Indexing
-sessions index                        # index new/modified sessions
-sessions index --backfill             # re-index everything
-```
-
-The old multi-command interface (`session-search`, `session-analyze`, `session-index`) still works if you prefer it.
 
 ---
 
