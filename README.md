@@ -23,10 +23,10 @@ Ask "what did I try last time I debugged webhooks?" and get an actual answer.
 pip install claude-session-index
 
 # Search for anything — indexing happens automatically on first run
-session-search search "webhook debugging"
+sessions "webhook debugging"
 
 # See your analytics
-session-analyze analytics --week
+sessions analytics --week
 ```
 
 The first time you run any command, it automatically indexes all your existing sessions. No separate setup step. After that, searches return in milliseconds.
@@ -41,7 +41,7 @@ All examples below are from a real system with 2,900+ indexed sessions.
 
 You type:
 ```bash
-session-search search "silent failure"
+sessions "silent failure"
 ```
 
 You get:
@@ -66,7 +66,7 @@ Every result has a `→ claude --resume` command ready to copy — jump straight
 
 You type:
 ```bash
-session-analyze context a5b111c6 "failure"
+sessions context a5b111c6 "failure"
 ```
 
 You get the actual conversation back, formatted like a chat:
@@ -99,7 +99,7 @@ Tool calls get collapsed into readable one-liners — `[Read: path]`, `[Edit: pa
 
 You type:
 ```bash
-session-analyze analytics --week
+sessions analytics --week
 ```
 
 You get:
@@ -146,7 +146,7 @@ Filter by client (`--client "Windmill Labs"`), project (`--project myapp`), or t
 
 You type:
 ```bash
-session-analyze synthesize "form automation debugging"
+sessions synthesize "form automation debugging"
 ```
 
 The tool searches your sessions, pulls out the relevant conversations, and synthesizes an answer across all of them:
@@ -206,16 +206,16 @@ export ANTHROPIC_API_KEY=sk-...
 ## All the ways to search
 
 ```bash
-session-search search "query"              # full-text search
-session-search search "query" --context    # with conversation excerpts inline
-session-search find --client "Acme"        # filter by client
-session-search find --tool Task --week     # filter by tool + date
-session-search find --project myapp        # filter by project
-session-search recent 20                   # last N sessions
-session-search topics <session_id>         # topic timeline for a session
-session-search tools                       # top tools across all sessions
-session-search tools "Bash"                # sessions using a specific tool
-session-search stats                       # database overview
+sessions "query"                           # search — just type what you're looking for
+sessions "query" --context                 # search with conversation excerpts inline
+sessions find --client "Acme"              # filter by client
+sessions find --tool Task --week           # filter by tool + date
+sessions find --project myapp              # filter by project
+sessions recent 20                         # last N sessions
+sessions topics <session_id>               # topic timeline for a session
+sessions tools                             # top tools across all sessions
+sessions tools "Bash"                      # sessions using a specific tool
+sessions stats                             # database overview
 ```
 
 ---
@@ -347,9 +347,9 @@ Works out of the box with sensible defaults. All paths are configurable.
 ```
 ~/.claude/projects/          session-index              Your queries
   ├── -project-a/              ┌──────────┐
-  │   ├── abc123.jsonl ──────▶│ SQLite   │◀──── session-search search "X"
-  │   └── def456.jsonl ──────▶│ + FTS5   │◀──── session-analyze analytics
-  ├── -project-b/              └──────────┘◀──── session-analyze context ID
+  │   ├── abc123.jsonl ──────▶│ SQLite   │◀──── sessions "webhook debugging"
+  │   └── def456.jsonl ──────▶│ + FTS5   │◀──── sessions analytics --week
+  ├── -project-b/              └──────────┘◀──── sessions context abc123
   │   └── ghi789.jsonl ──────▶     │
   └── ...                          │
                                    ▼
@@ -375,51 +375,41 @@ The indexer parses JSONL files once, extracts metadata (timestamps, tools, agent
 
 ## All commands
 
-### session-index (indexer)
+Everything goes through `sessions`. Plain text defaults to search.
 
 ```bash
-session-index --backfill              # Index all existing sessions
-session-index --incremental           # Index new/modified only
-session-index --index <session_id>    # Index a single session
-session-index --stats                 # Database statistics
+# Search
+sessions "query"                      # just type what you're looking for
+sessions "query" --context            # with conversation excerpts
+
+# Browse a conversation
+sessions context <id> "term"          # exchanges matching a term
+sessions context <id>                 # all exchanges
+
+# Analytics
+sessions analytics                    # overall stats
+sessions analytics --client X         # per-client
+sessions analytics --week             # this week
+sessions analytics --month            # this month
+
+# Synthesis
+sessions synthesize "topic"           # cross-session intelligence
+sessions synthesize "topic" --limit 5
+
+# Browse & filter
+sessions recent 20                    # last N sessions
+sessions find --client X              # filter by client
+sessions find --tool Task --week      # filter by tool + date
+sessions topics <session_id>          # topic timeline
+sessions tools                        # top tools across sessions
+sessions stats                        # database overview
+
+# Indexing
+sessions index                        # index new/modified sessions
+sessions index --backfill             # re-index everything
 ```
 
-### session-search
-
-```bash
-session-search search "query"         # Full-text search
-session-search search "query" --context  # With conversation excerpts
-session-search find --client X        # Filter by client
-session-search find --tool Task       # Filter by tool used
-session-search find --week            # Last 7 days
-session-search find --project myapp   # Filter by project
-session-search topics <session_id>    # Topic timeline
-session-search recent 20              # Recent sessions
-session-search stats                  # Database stats
-session-search tools                  # Top tools across sessions
-session-search tools "Bash"           # Sessions using specific tool
-```
-
-### session-analyze
-
-```bash
-session-analyze context <id> "term"   # Conversation around matches
-session-analyze context <id>          # All exchanges
-session-analyze analytics             # Overall stats
-session-analyze analytics --client X  # Per-client
-session-analyze analytics --week      # This week
-session-analyze analytics --month     # This month
-session-analyze synthesize "topic"    # Cross-session synthesis
-session-analyze synthesize "topic" --limit 5
-```
-
-### session-topic-capture (hook script)
-
-```bash
-session-topic-capture UserPromptSubmit   # Periodic capture
-session-topic-capture PreCompact         # Pre-compaction capture
-session-topic-capture SessionEnd         # Final capture + re-index
-```
+The old multi-command interface (`session-search`, `session-analyze`, `session-index`) still works if you prefer it.
 
 ---
 
