@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.2.0 — It looks good now
+
+The output got a proper makeover. Conversations read like conversations. Analytics have visual hierarchy. And you don't have to set anything up anymore.
+
+- Chat-like conversation display with 🧑/🤖 markers — you can actually tell who said what
+- Box-drawing characters for session cards and exchange blocks
+- Section headers with emoji in analytics (📊 📈 🔧 💬) for scannable output
+- Cleaner search results with ◆ bullets and → resume commands
+- Auto-indexing on first use — no more separate `--backfill` step, just run any command and it handles the rest
+- Better stats display with visual structure instead of raw JSON
+
 ## v0.1.0 — Initial release
 
 - Full-text search across all Claude Code sessions (SQLite + FTS5)

@@ -130,3 +130,49 @@ def init_config():
     CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
     CONFIG_FILE.write_text(json.dumps(DEFAULTS, indent=2) + "\n")
     return True
+
+
+def ensure_indexed(db_path: Path = None) -> bool:
+    """Auto-index on first use if database is empty or missing.
+
+    Returns True if backfill was triggered.
+    """
+    import sqlite3
+
+    if db_path is None:
+        db_path = get_db_path()
+
+    needs_backfill = False
+    if not db_path.exists():
+        needs_backfill = True
+    else:
+        try:
+            conn = sqlite3.connect(str(db_path))
+            has_table = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'"
+            ).fetchone()
+            if has_table:
+                count = conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
+                needs_backfill = (count == 0)
+            else:
+                needs_backfill = True
+            conn.close()
+        except Exception:
+            needs_backfill = True
+
+    if needs_backfill:
+        print("\n  First run — indexing all your sessions...")
+        print("  (This only happens once.)\n")
+        try:
+            from session_index.indexer import SessionIndexer
+        except ImportError:
+            try:
+                from .indexer import SessionIndexer
+            except ImportError:
+                from indexer import SessionIndexer
+        indexer = SessionIndexer(db_path=db_path)
+        indexer.connect()
+        indexer.backfill_all()
+        indexer.close()
+        return True
+    return False

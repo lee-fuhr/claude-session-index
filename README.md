@@ -22,17 +22,14 @@ Ask "what did I try last time I debugged webhooks?" and get an actual answer.
 ```bash
 pip install claude-session-index
 
-# Index all your existing sessions (one-time backfill)
-session-index --backfill
-
-# Search for anything
+# Search for anything — indexing happens automatically on first run
 session-search search "webhook debugging"
 
 # See your analytics
 session-analyze analytics --week
 ```
 
-That's it. Your sessions are now searchable.
+The first time you run any command, it automatically indexes all your existing sessions. No separate setup step. After that, searches return in milliseconds.
 
 ---
 
@@ -49,21 +46,21 @@ session-search search "silent failure"
 
 You get:
 ```
-3 results for "silent failure":
+🔍 3 results for "silent failure"
 
-  a5b111c6  (unnamed)
-           2026-01-18 · my-project · 51 exchanges
-           "...This was a silent failure - appeared to work but didn't..."
-           claude --resume a5b111c6-dca0-4ee9-b237-74b75baf13cd
+  ◆ a5b111c6 · (unnamed)
+    2026-01-18 · my-project · 51 exchanges
+    "...This was a silent failure - appeared to work but didn't..."
+    → claude --resume a5b111c6-dca0-4ee9-b237-74b75baf13cd
 
-  7b22239e  (unnamed)
-           2026-01-18 · my-project · 50 exchanges
-           "...The phrase 'silent failure, which is the ultimate sin'
-           captures the core requirement: systems must fail loudly..."
-           claude --resume 7b22239e-9f90-466f-ad92-849840b2a6fd
+  ◆ 7b22239e · (unnamed)
+    2026-01-18 · my-project · 50 exchanges
+    "...The phrase 'silent failure, which is the ultimate sin'
+    captures the core requirement: systems must fail loudly..."
+    → claude --resume 7b22239e-9f90-466f-ad92-849840b2a6fd
 ```
 
-Each result has a `claude --resume` command ready to copy — jump straight back into that session.
+Every result has a `→ claude --resume` command ready to copy — jump straight back into that session.
 
 ### "Show me what was actually said in that session"
 
@@ -72,22 +69,28 @@ You type:
 session-analyze context a5b111c6 "failure"
 ```
 
-You get the actual conversation back:
+You get the actual conversation back, formatted like a chat:
 ```
-Session: Build automation debugging
-  2026-01-20 · my-project · 96 exchanges · 7min
+╭─── Build automation debugging ─────────────────
+│ 2026-01-20 · my-project · 96 exchanges · 7min
+│ → claude --resume a5b111c6-dca0-4ee9-b237-74b75baf13cd
+╰────────────────────────────────────────────────
 
 Matching exchanges for "failure":
 
-── Exchange 1 2026-01-20T19:14 ──
-  User: Breakthrough session. Successfully submitted forms #32 and #33
-        using synthetic MouseEvent dispatch to bypass the framework's
-        event handling. Key learning: the submit button is a DIV with
-        class 'action-button', NOT a <button> tag.
-  Assistant: I'll process these findings. Let me search for existing
-        patterns related to the framework and event handling...
-        [Grep: framework|zone\.js|MouseEvent|click]
-        [Read: /path/to/automation/docs.md]
+  ┌─ Jan 20, 19:14 ──────────────────────────────
+  │
+  │  🧑 Breakthrough session. Successfully submitted forms #32 and #33
+  │     using synthetic MouseEvent dispatch to bypass the framework's
+  │     event handling. Key learning: the submit button is a DIV with
+  │     class 'action-button', NOT a <button> tag.
+  │
+  │  🤖 I'll process these findings. Let me search for existing
+  │     patterns related to the framework and event handling...
+  │     [Grep: framework|zone\.js|MouseEvent|click]
+  │     [Read: /path/to/automation/docs.md]
+  │
+  └────────────────────────────────────────────────
 ```
 
 Tool calls get collapsed into readable one-liners — `[Read: path]`, `[Edit: path]`, `[Bash: command]`, `[Task: "description" → agent]` — so you can follow the conversation without drowning in JSON.
@@ -101,17 +104,19 @@ session-analyze analytics --week
 
 You get:
 ```
-Session analytics (this week)
-==================================================
+Session analytics — this week
+══════════════════════════════════════════════════
 
-  89 sessions · 302.8h total · avg 204min/session · avg 340 exchanges
+  📊 89 sessions · 302.8h total · avg 204min/session · avg 340 exchanges
 
-Time per client:
+  ⏱  Time per client
+  ──────────────────────────────────────────────
   Windmill Labs                 2 sessions    47.7h  avg 250 exchanges
   GridSync                      2 sessions    17.2h  avg 269 exchanges
   NovaTech                      4 sessions     7.3h  avg 212 exchanges
 
-Daily trend (last 14 days):
+  📈 Daily trend (last 14 days)
+  ──────────────────────────────────────────────
   2026-01-20   18 sessions   57.2h  ████████████████████████████████████████
   2026-01-21   16 sessions   76.0h  ████████████████████████████████████████
   2026-01-22    6 sessions    7.9h  ███████████████████████████████
@@ -120,13 +125,15 @@ Daily trend (last 14 days):
   2026-01-30   16 sessions  122.2h  ████████████████████████████████████████
   2026-02-01   18 sessions   34.5h  ████████████████████████████████████████
 
-Top tools:
+  🔧 Top tools
+  ──────────────────────────────────────────────
   Bash                         3214 uses  (46 sessions)
   Read                         2126 uses  (83 sessions)
   Edit                         1718 uses  (71 sessions)
   Task                          218 uses  (21 sessions)
 
-Tool trends (this week vs last):
+  📊 Tool trends (this week vs last)
+  ──────────────────────────────────────────────
   Task                         218 (was    90)  ↑ 142%
   Skill                         24 (was     7)  ↑ 243%
   Edit                        1718 (was   818)  ↑ 110%
@@ -145,17 +152,23 @@ session-analyze synthesize "form automation debugging"
 The tool searches your sessions, pulls out the relevant conversations, and synthesizes an answer across all of them:
 
 ```
-Cross-session synthesis: "form automation debugging"
-==================================================
+Cross-session synthesis — "form automation debugging"
+══════════════════════════════════════════════════════
 
-Sources (5 sessions spanning 3 weeks):
-  2026-01-10  Build automation system — initial 4-module architecture
-  2026-01-15  Form submission debugging — element selectors
-  2026-01-18  Breakthrough — synthetic events bypass framework
-  2026-01-20  Documentation + QA hardening
-  2026-02-01  Phase 2 — 14 files, 4,200 lines, QA swarm
+  📚 Sources (5 sessions, 5 with matching exchanges)
 
-──────────────────────────────────────────────────
+    2026-01-10  Build automation system — initial 4-module architecture
+             → claude --resume abc123...
+    2026-01-15  Form submission debugging — element selectors
+             → claude --resume def456...
+    2026-01-18  Breakthrough — synthetic events bypass framework
+             → claude --resume ghi789...
+    2026-01-20  Documentation + QA hardening
+             → claude --resume jkl012...
+    2026-02-01  Phase 2 — 14 files, 4,200 lines, QA swarm
+             → claude --resume mno345...
+
+  ────────────────────────────────────────────────
 
 Approaches tried: element.click() → failed (framework intercepts).
 Coordinate-based clicking → failed (dynamic elements). Synthetic

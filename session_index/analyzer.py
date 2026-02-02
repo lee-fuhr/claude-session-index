@@ -261,26 +261,58 @@ def format_context(result: dict) -> str:
 
     lines = []
     s = result["session"]
-    sid = s["session_id"][:8]
     title = s.get("title_display") or "(unnamed)"
-    lines.append(f"Session: {title}")
-    lines.append(f"  {s.get('start_time', '')[:10]} · {s.get('project_name', '')} · "
-                  f"{s.get('exchange_count', 0)} exchanges · "
-                  f"{s.get('duration_minutes') or '?'}min")
-    lines.append(f"  claude --resume {s['session_id']}")
+
+    # Session header card
+    lines.append(f"\n╭─── {title} {'─' * max(1, 44 - len(title))}")
+    meta = []
+    if s.get('start_time'):
+        meta.append(s['start_time'][:10])
+    if s.get('project_name'):
+        meta.append(s['project_name'])
+    if s.get('exchange_count'):
+        meta.append(f"{s['exchange_count']} exchanges")
+    if s.get('duration_minutes'):
+        meta.append(f"{s['duration_minutes']}min")
+    lines.append(f"│ {' · '.join(meta)}")
+    lines.append(f"│ → claude --resume {s['session_id']}")
+    lines.append(f"╰{'─' * 48}")
 
     if result["query"]:
-        lines.append(f"\nMatching exchanges for \"{result['query']}\":")
+        lines.append(f"\nMatching exchanges for \"{result['query']}\":\n")
     else:
-        lines.append(f"\nAll exchanges ({result['total_matches']} shown):")
-
-    lines.append("")
+        lines.append(f"\nAll exchanges ({result['total_matches']} shown):\n")
 
     for i, ex in enumerate(result["exchanges"], 1):
         ts = ex["timestamp"][:16] if ex["timestamp"] else ""
-        lines.append(f"── Exchange {i} {ts} ──")
-        lines.append(f"  User: {ex['user']}")
-        lines.append(f"  Assistant: {ex['assistant']}")
+        try:
+            dt = datetime.fromisoformat(ts)
+            ts_display = dt.strftime("%b %d, %H:%M")
+        except (ValueError, TypeError):
+            ts_display = ts
+        lines.append(f"  ┌─ {ts_display} {'─' * max(1, 40 - len(ts_display))}")
+        lines.append(f"  │")
+
+        # User message — first line gets emoji, rest indented
+        user_lines = ex['user'].split('\n')
+        for j, ul in enumerate(user_lines):
+            if j == 0:
+                lines.append(f"  │  🧑 {ul}")
+            else:
+                lines.append(f"  │     {ul}")
+
+        lines.append(f"  │")
+
+        # Assistant message
+        asst_lines = ex['assistant'].split('\n')
+        for j, al in enumerate(asst_lines):
+            if j == 0:
+                lines.append(f"  │  🤖 {al}")
+            else:
+                lines.append(f"  │     {al}")
+
+        lines.append(f"  │")
+        lines.append(f"  └{'─' * 44}")
         lines.append("")
 
     return "\n".join(lines)
@@ -425,23 +457,23 @@ def format_analytics(data: dict) -> str:
     lines = []
 
     period = data.get("period", "all time")
-    lines.append(f"Session analytics ({period})")
-    lines.append("=" * 50)
+    lines.append(f"\nSession analytics — {period}")
+    lines.append("═" * 50)
 
     # Overview
     ov = data.get("overview", {})
     total = ov.get("total_sessions", 0)
     mins = ov.get("total_minutes") or 0
     hours = round(mins / 60, 1) if mins else 0
-    lines.append(f"\n  {total} sessions · {hours}h total · "
+    lines.append(f"\n  📊 {total} sessions · {hours}h total · "
                   f"avg {ov.get('avg_duration') or 0}min/session · "
-                  f"avg {ov.get('avg_exchanges') or 0} exchanges · "
-                  f"{ov.get('compacted_sessions', 0)} compacted")
+                  f"avg {ov.get('avg_exchanges') or 0} exchanges")
 
     # Time per client
     tpc = data.get("time_per_client", [])
     if tpc:
-        lines.append(f"\nTime per client:")
+        lines.append(f"\n  ⏱  Time per client")
+        lines.append(f"  {'─' * 46}")
         for r in tpc:
             hrs = round((r["total_minutes"] or 0) / 60, 1)
             lines.append(f"  {r['client']:25s}  {r['sessions']:>4d} sessions  "
@@ -450,7 +482,8 @@ def format_analytics(data: dict) -> str:
     # By project
     bp = data.get("by_project", [])
     if bp:
-        lines.append(f"\nBy project:")
+        lines.append(f"\n  📁 By project")
+        lines.append(f"  {'─' * 46}")
         for r in bp:
             hrs = round((r["total_minutes"] or 0) / 60, 1)
             lines.append(f"  {r['project_name']:25s}  {r['sessions']:>4d} sessions  {hrs:>6.1f}h")
@@ -458,7 +491,8 @@ def format_analytics(data: dict) -> str:
     # Daily trend
     dt = data.get("daily_trend", [])
     if dt:
-        lines.append(f"\nDaily trend (last 14 days):")
+        lines.append(f"\n  📈 Daily trend (last 14 days)")
+        lines.append(f"  {'─' * 46}")
         for r in dt:
             mins = r["minutes"] or 0
             bar = "█" * min(int(mins / 15), 40)
@@ -468,7 +502,8 @@ def format_analytics(data: dict) -> str:
     # Top tools
     tt = data.get("top_tools", [])
     if tt:
-        lines.append(f"\nTop tools:")
+        lines.append(f"\n  🔧 Top tools")
+        lines.append(f"  {'─' * 46}")
         for r in tt:
             lines.append(f"  {r['tool_name']:25s}  {r['total']:>6d} uses  "
                           f"({r['session_count']} sessions)")
@@ -476,7 +511,8 @@ def format_analytics(data: dict) -> str:
     # Tool trends
     trends = data.get("tool_trends", [])
     if trends:
-        lines.append(f"\nTool trends (this week vs last):")
+        lines.append(f"\n  📊 Tool trends (this week vs last)")
+        lines.append(f"  {'─' * 46}")
         for r in trends:
             tw = r["this_week"] or 0
             lw = r["last_week"] or 0
@@ -493,9 +529,10 @@ def format_analytics(data: dict) -> str:
     # Top topics
     topics = data.get("top_topics", [])
     if topics:
-        lines.append(f"\nMost discussed topics:")
+        lines.append(f"\n  💬 Most discussed topics")
+        lines.append(f"  {'─' * 46}")
         for r in topics[:10]:
-            lines.append(f"  {r['mentions']:>3d}x  {r['topic']}")
+            lines.append(f"  {r['mentions']:>3d}×  {r['topic']}")
 
     return "\n".join(lines)
 
@@ -637,24 +674,24 @@ def format_synthesis(result: dict) -> str:
         return result["error"]
 
     lines = []
-    lines.append(f"Cross-session synthesis: \"{result.get('query', '')}\"")
-    lines.append("=" * 50)
+    lines.append(f"\nCross-session synthesis — \"{result.get('query', '')}\"")
+    lines.append("═" * 50)
 
     # Sources
     sources = result.get("sessions", [])
     if sources:
-        lines.append(f"\nSources ({len(sources)} sessions, "
-                      f"{result.get('excerpt_count', 0)} with matching exchanges):")
+        lines.append(f"\n  📚 Sources ({len(sources)} sessions, "
+                      f"{result.get('excerpt_count', 0)} with matching exchanges)\n")
         for s in sources:
             title = s.get("title") or "(unnamed)"
-            if len(title) > 60:
-                title = title[:57] + "..."
-            lines.append(f"  {s['date']}  {title}")
-            lines.append(f"           claude --resume {s['session_id']}")
+            if len(title) > 55:
+                title = title[:52] + "..."
+            lines.append(f"    {s['date']}  {title}")
+            lines.append(f"             → claude --resume {s['session_id']}")
 
     # Synthesis
     if result.get("synthesis"):
-        lines.append(f"\n{'─' * 50}")
+        lines.append(f"\n  {'─' * 48}\n")
         lines.append(result["synthesis"])
 
     return "\n".join(lines)
@@ -699,6 +736,8 @@ def main():
     if not args.command:
         parser.print_help()
         sys.exit(0)
+
+    config.ensure_indexed(db_path)
 
     if args.command == "context":
         result = get_context(args.session_id, query=args.query, limit=args.limit,

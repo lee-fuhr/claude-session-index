@@ -189,12 +189,12 @@ def format_result(r: dict, show_topics: bool = True) -> str:
     """Format a single search result for CLI output."""
     lines = []
 
-    # Title line
+    # Title line with bullet
     sid = r['session_id'][:8]
     title = r.get('title_display') or r.get('title') or '(unnamed)'
-    if len(title) > 80:
-        title = title[:77] + '...'
-    lines.append(f"  {sid}  {title}")
+    if len(title) > 70:
+        title = title[:67] + '...'
+    lines.append(f"  ◆ {sid} · {title}")
 
     # Metadata line
     meta = []
@@ -203,7 +203,7 @@ def format_result(r: dict, show_topics: bool = True) -> str:
     if r.get('project_name'):
         meta.append(r['project_name'])
     if r.get('client'):
-        meta.append(f"client:{r['client']}")
+        meta.append(r['client'])
     if r.get('exchange_count'):
         meta.append(f"{r['exchange_count']} exchanges")
     if r.get('duration_minutes'):
@@ -211,25 +211,25 @@ def format_result(r: dict, show_topics: bool = True) -> str:
     if r.get('has_compaction'):
         meta.append("compacted")
     if meta:
-        lines.append(f"           {' · '.join(meta)}")
+        lines.append(f"    {' · '.join(meta)}")
 
     # Snippet (from FTS search)
     if r.get('snippet'):
-        snippet = r['snippet'].replace('\n', ' ')[:120]
-        lines.append(f"           \"{snippet}\"")
+        snippet = r['snippet'].replace('>>>', '').replace('<<<', '').replace('\n', ' ')[:120]
+        lines.append(f"    \"{snippet}\"")
 
-    # Topics (the key value-add)
+    # Topics
     if show_topics and r.get('topics'):
         topic_strs = [t['topic'] for t in r['topics'][:5]]
         if topic_strs:
-            lines.append(f"           topics: {' → '.join(topic_strs)}")
+            lines.append(f"    topics: {' → '.join(topic_strs)}")
 
     # Tags
     if r.get('tags'):
-        lines.append(f"           [{r['tags']}]")
+        lines.append(f"    [{r['tags']}]")
 
-    # Resume command
-    lines.append(f"           claude --resume {r['session_id']}")
+    # Resume command — visually distinct as an action
+    lines.append(f"    → claude --resume {r['session_id']}")
 
     return '\n'.join(lines)
 
@@ -282,6 +282,7 @@ def main():
         sys.exit(0)
 
     db_path = Path(args.db_path) if args.db_path else config.get_db_path()
+    config.ensure_indexed(db_path)
     searcher = SessionSearch(db_path=db_path)
     searcher.connect()
 
@@ -291,31 +292,37 @@ def main():
             if not results:
                 print(f"No results for: {args.query}")
                 return
-            print(f"\n{len(results)} results for \"{args.query}\":\n")
+            print(f"\n🔍 {len(results)} results for \"{args.query}\"\n")
             for r in results:
                 print(format_result(r))
                 if args.context:
                     try:
-                        from session_index.analyzer import get_context, format_context
+                        from session_index.analyzer import get_context
                     except ImportError:
                         try:
-                            from .analyzer import get_context, format_context
+                            from .analyzer import get_context
                         except ImportError:
                             try:
-                                from session_analyzer import get_context, format_context
+                                from session_analyzer import get_context
                             except ImportError:
-                                print("           (context not available — analyzer module not found)")
+                                print("    (context not available — analyzer module not found)")
                                 print()
                                 continue
                     ctx = get_context(r['session_id'], query=args.query, limit=3)
                     if ctx.get('exchanges'):
                         for ex in ctx['exchanges']:
                             ts = ex['timestamp'][:16] if ex['timestamp'] else ''
-                            print(f"           ── {ts} ──")
-                            user_preview = ex['user'][:200].replace('\n', ' ')
-                            asst_preview = ex['assistant'][:200].replace('\n', ' ')
-                            print(f"           User: {user_preview}")
-                            print(f"           Asst: {asst_preview}")
+                            try:
+                                dt = datetime.fromisoformat(ts)
+                                ts_display = dt.strftime("%b %d, %H:%M")
+                            except (ValueError, TypeError):
+                                ts_display = ts
+                            print(f"    ┌─ {ts_display} {'─' * max(1, 36 - len(ts_display))}")
+                            user_preview = ex['user'][:250].replace('\n', ' ')
+                            asst_preview = ex['assistant'][:250].replace('\n', ' ')
+                            print(f"    │ 🧑 {user_preview}")
+                            print(f"    │ 🤖 {asst_preview}")
+                            print(f"    └{'─' * 42}")
                 print()
 
         elif args.command == 'find':
@@ -329,7 +336,7 @@ def main():
             if not results:
                 print("No sessions match those filters.")
                 return
-            print(f"\n{len(results)} sessions:\n")
+            print(f"\n📋 {len(results)} sessions\n")
             for r in results:
                 print(format_result(r))
                 print()
@@ -359,11 +366,17 @@ def main():
             ).fetchone()
 
             if session:
-                print(f"\nSession: {session['title_display'] or '(unnamed)'}")
-                print(f"Started: {session['start_time'][:16] if session['start_time'] else 'unknown'}")
-                print(f"Project: {session['project_name']}")
+                title = session['title_display'] or '(unnamed)'
+                print(f"\n╭─── {title} {'─' * max(1, 44 - len(title))}")
+                meta = []
+                if session['start_time']:
+                    meta.append(session['start_time'][:16])
+                if session['project_name']:
+                    meta.append(session['project_name'])
+                print(f"│ {' · '.join(meta)}")
+                print(f"╰{'─' * 48}")
 
-            print(f"\nTopic timeline ({len(topics)} entries):\n")
+            print(f"\n💬 Topic timeline ({len(topics)} entries)\n")
             for t in topics:
                 ts = t['captured_at'][:16] if t['captured_at'] else ''
                 ex = f" (exchange {t['exchange_number']})" if t['exchange_number'] else ''
@@ -374,27 +387,46 @@ def main():
 
         elif args.command == 'recent':
             results = searcher.recent(args.n)
-            print(f"\nLast {len(results)} sessions:\n")
+            print(f"\n📋 Last {len(results)} sessions\n")
             for r in results:
                 print(format_result(r))
                 print()
 
         elif args.command == 'stats':
             stats = searcher.stats()
-            print(json.dumps(stats, indent=2))
+            print(f"\n📊 Database overview")
+            print(f"{'═' * 40}")
+            print(f"  Sessions:  {stats.get('total_sessions', 0)}")
+            print(f"  Topics:    {stats.get('total_topics', 0)}")
+            print(f"  Tools:     {stats.get('total_tools', 0)} distinct")
+            print(f"  Agents:    {stats.get('total_agents', 0)} distinct")
+            dr = stats.get('date_range', {})
+            if dr.get('earliest'):
+                print(f"  Range:     {dr['earliest']} → {dr['latest']}")
+            if stats.get('by_project'):
+                print(f"\n  📁 By project")
+                print(f"  {'─' * 36}")
+                for name, cnt in list(stats['by_project'].items())[:10]:
+                    print(f"  {name:25s}  {cnt:>5d}")
+            if stats.get('top_tools'):
+                print(f"\n  🔧 Top tools")
+                print(f"  {'─' * 36}")
+                for name, cnt in list(stats['top_tools'].items())[:10]:
+                    print(f"  {name:25s}  {cnt:>5d}")
+            print()
 
         elif args.command == 'tools':
             results = searcher.tools_usage(args.tool_name)
             if args.tool_name:
-                print(f"\nSessions using '{args.tool_name}':\n")
+                print(f"\n🔧 Sessions using '{args.tool_name}'\n")
                 for r in results:
                     sid = r['session_id'][:8]
                     title = r.get('title_display') or r.get('title') or '(unnamed)'
-                    print(f"  {sid}  {r['tool_name']} x{r['use_count']}  {title}")
+                    print(f"  ◆ {sid} · {r['tool_name']} ×{r['use_count']}  {title}")
             else:
-                print("\nTop tools across all sessions:\n")
+                print(f"\n🔧 Top tools across all sessions\n")
                 for r in results:
-                    print(f"  {r['tool_name']:30s}  {r['total']:>6d} uses  ({r['session_count']} sessions)")
+                    print(f"  {r['tool_name']:25s}  {r['total']:>6d} uses  ({r['session_count']} sessions)")
 
     finally:
         searcher.close()
