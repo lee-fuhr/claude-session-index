@@ -102,7 +102,9 @@ def main():
     sp.add_argument('--agent', help='Filter by agent used')
     sp.add_argument('--date', help='Filter by date (YYYY-MM-DD)')
     sp.add_argument('--week', action='store_true', help='Last 7 days')
+    sp.add_argument('--days', type=int, help='Last N days')
     sp.add_argument('--project', help='Filter by project')
+    sp.add_argument('--exclude-project', help='Exclude a project from results')
     sp.add_argument('--compacted', action='store_true', help='Only compacted sessions')
     sp.add_argument('-n', '--limit', type=int, default=20)
 
@@ -220,7 +222,9 @@ def main():
             results = searcher.find(
                 client=args.client, tag=args.tag, tool=args.tool,
                 agent=args.agent, date=args.date, week=args.week,
+                days=getattr(args, 'days', None),
                 project=args.project,
+                exclude_project=getattr(args, 'exclude_project', None),
                 has_compaction=True if args.compacted else None,
                 limit=args.limit,
             )

@@ -179,7 +179,16 @@ class SessionIndexer:
                         has_compaction = True
                         summary_text = entry.get('summary', '')
                         if summary_text:
-                            summaries.append(summary_text)
+                            # Parse JSON summaries to extract clean title/text
+                            if summary_text.strip().startswith('{'):
+                                try:
+                                    parsed = json.loads(summary_text)
+                                    clean = parsed.get('title', '') or parsed.get('summary', '') or summary_text
+                                    summaries.append(clean)
+                                except (json.JSONDecodeError, AttributeError):
+                                    summaries.append(summary_text)
+                            else:
+                                summaries.append(summary_text)
 
                     # Count exchanges
                     if entry_type in ('user', 'assistant'):
@@ -220,6 +229,21 @@ class SessionIndexer:
         except Exception as e:
             print(f"Error parsing {session_id}: {e}", file=sys.stderr)
             return None
+
+        # Auto-generate title if none was set explicitly
+        if not title_display and summaries:
+            title_display = summaries[0][:80]
+            if len(summaries[0]) > 80:
+                title_display = summaries[0][:77] + '...'
+            title = title_display
+        elif not title_display and user_prompts:
+            # Use first substantial user message
+            first = user_prompts[0].strip().split('\n')[0][:80]
+            if len(first) > 10:
+                title_display = first
+                if len(user_prompts[0].strip().split('\n')[0]) > 80:
+                    title_display = first[:77] + '...'
+                title = title_display
 
         # Detect client from user prompts + file paths in tool calls
         client = None

@@ -14,10 +14,16 @@ Ask "what did I try last time I debugged webhooks?" and get an actual answer.
 pip install claude-session-index
 ```
 
-Then copy the skill into your Claude Code project:
+Then install the Claude Code skill:
 
 ```bash
-cp skill/SKILL.md .claude/skills/session-index.md
+npx skills add lee-fuhr/claude-session-index
+```
+
+Or copy it manually:
+
+```bash
+cp skills/session-index/SKILL.md .claude/skills/session-index.md
 ```
 
 That's it. The first time you ask a question, it auto-indexes all your existing sessions. After that, queries return in milliseconds.

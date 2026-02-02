@@ -101,7 +101,8 @@ class SessionSearch:
 
     def find(self, client: str = None, tag: str = None, tool: str = None,
              agent: str = None, date: str = None, week: bool = False,
-             project: str = None, has_compaction: bool = None,
+             days: int = None, project: str = None,
+             exclude_project: str = None, has_compaction: bool = None,
              limit: int = 20) -> list[dict]:
         """Filter sessions by various criteria."""
         conditions = []
@@ -135,6 +136,15 @@ class SessionSearch:
             week_ago = (datetime.now() - timedelta(days=7)).isoformat()
             conditions.append("s.start_time >= ?")
             params.append(week_ago)
+
+        if days:
+            days_ago = (datetime.now() - timedelta(days=days)).isoformat()
+            conditions.append("s.start_time >= ?")
+            params.append(days_ago)
+
+        if exclude_project:
+            conditions.append("NOT (s.project_name LIKE ? OR s.project LIKE ?)")
+            params.extend([f"%{exclude_project}%", f"%{exclude_project}%"])
 
         if has_compaction is not None:
             conditions.append("s.has_compaction = ?")
