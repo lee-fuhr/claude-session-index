@@ -45,7 +45,7 @@ Full-text search across every user message in every session.
 session-search search "deployment pipeline"
 
 # Filter by project, client, tool, date
-session-search find --client "Acme Corp" --week
+session-search find --client "Windmill Labs" --week
 session-search find --tool "Task" --project "my-app"
 
 # Recent sessions
@@ -55,18 +55,39 @@ session-search recent 20
 session-search search "auth bug" --context
 ```
 
-**Output:**
+**Output** (from a real system with 2,900+ indexed sessions):
 ```
-3 results for "webhook debugging":
+3 results for "silent failure":
 
-  a1b2c3d4  >>> API integration fixes [webhook, debug]
-           2026-01-15 · my-app · 42 exchanges · 87min
-           "...the webhook wasn't firing because the endpoint URL had a trailing slash..."
-           topics: Webhook setup → Retry logic → Edge case fix
-           claude --resume a1b2c3d4-full-session-id-here
+  a5b111c6  (unnamed)
+           2026-01-18 · my-project · 51 exchanges
+           "...This was a silent failure - appeared to work but didn't..."
+           claude --resume a5b111c6-dca0-4ee9-b237-74b75baf13cd
+
+  7b22239e  (unnamed)
+           2026-01-18 · my-project · 50 exchanges
+           "...The phrase 'silent failure, which is the ultimate sin'
+           captures the core requirement: systems must fail loudly..."
+           claude --resume 7b22239e-9f90-466f-ad92-849840b2a6fd
 ```
 
 Each result shows the session title, metadata, matching snippet, topic timeline, and a ready-to-copy `claude --resume` command.
+
+### Search with inline context
+
+Add `--context` to see actual conversation exchanges right in the search results:
+
+```
+session-search search "silent failure" --context
+
+  a5b111c6  (unnamed)
+           2026-01-18 · my-project · 51 exchanges
+           ── 2026-01-18T04:55 ──
+           User: [session data about discovering a silent failure in background jobs]
+           Asst: Now let me check for any existing "silent failure" or
+                 "user feedback" patterns in the codebase...
+                 This is a new failure mode — appeared to work but didn't...
+```
 
 ## Conversation context
 
@@ -74,23 +95,28 @@ Read the actual conversation from any session — not just metadata, but what wa
 
 ```bash
 # Show exchanges matching a term
-session-analyze context a1b2c3d4 "retry logic"
+session-analyze context a5b111c6 "failure"
 
 # Show all exchanges
-session-analyze context a1b2c3d4
+session-analyze context a5b111c6
 ```
 
-**Output:**
+**Output** (from a real session):
 ```
-Session: API integration fixes
-  2026-01-15 · my-app · 42 exchanges · 87min
+Session: Build automation debugging
+  2026-01-20 · my-project · 96 exchanges · 7min
 
-Matching exchanges for "retry logic":
+Matching exchanges for "click":
 
-── Exchange 14 2026-01-15T10:42 ──
-  User: The webhook fires but sometimes the receiver returns 503...
-  Assistant: Let's add exponential backoff retry logic...
-  [Edit: src/webhooks/sender.py (added retry decorator)]
+── Exchange 1 2026-01-20T19:14 ──
+  User: Breakthrough session. Successfully submitted forms #32 and #33
+        using synthetic MouseEvent dispatch to bypass the framework's
+        event handling. Key learning: the submit button is a DIV with
+        class 'action-button', NOT a <button> tag.
+  Assistant: I'll process these findings. Let me search for existing
+        patterns related to the framework and event handling...
+        [Grep: angular|zone\.js|MouseEvent|click]
+        [Read: /path/to/automation/docs.md]
 ```
 
 Tool calls are collapsed into readable one-liners: `[Read: path]`, `[Edit: path]`, `[Bash: command]`, `[Task: "description" → agent]`.
@@ -107,30 +133,48 @@ session-analyze analytics --client X   # specific client
 session-analyze analytics --project X  # specific project
 ```
 
-**Output:**
+**Output** (from a real system):
 ```
 Session analytics (this week)
 ==================================================
 
-  42 sessions · 18.3h total · avg 26min/session · avg 31 exchanges
+  89 sessions · 302.8h total · avg 204min/session · avg 340 exchanges · 20 compacted
 
 Time per client:
-  Acme Corp                   12 sessions   6.2h  avg 45 exchanges
-  Internal                     8 sessions   3.1h  avg 22 exchanges
+  Windmill Labs                 2 sessions    47.7h  avg 250 exchanges
+  GridSync                      2 sessions    17.2h  avg 269 exchanges
+  NovaTech                      4 sessions     7.3h  avg 212 exchanges
+
+By project:
+  tools                        20 sessions   170.8h
+  consulting                    8 sessions    90.3h
+  personal                      5 sessions    31.0h
 
 Daily trend (last 14 days):
-  2026-01-20    8 sessions   3.2h  ████████████████
-  2026-01-21   12 sessions   4.8h  ████████████████████████
-  2026-01-22    6 sessions   2.1h  ██████████
+  2026-01-19    5 sessions   50.0h  ████████████████████████████████████████
+  2026-01-20   18 sessions   57.2h  ████████████████████████████████████████
+  2026-01-21   16 sessions   76.0h  ████████████████████████████████████████
+  2026-01-22    6 sessions    7.9h  ███████████████████████████████
+  2026-01-28    8 sessions   50.1h  ████████████████████████████████████████
+  2026-01-29   21 sessions   40.9h  ████████████████████████████████████████
+  2026-01-30   16 sessions  122.2h  ████████████████████████████████████████
+  2026-01-31    7 sessions    5.0h  ████████████████████
+  2026-02-01   18 sessions   34.5h  ████████████████████████████████████████
 
 Top tools:
-  Read                          312 uses  (38 sessions)
-  Edit                          245 uses  (32 sessions)
-  Bash                          189 uses  (28 sessions)
+  Bash                         3214 uses  (46 sessions)
+  Read                         2126 uses  (83 sessions)
+  Edit                         1718 uses  (71 sessions)
+  Grep                          785 uses  (66 sessions)
+  Write                         316 uses  (20 sessions)
+  Task                          218 uses  (21 sessions)
 
 Tool trends (this week vs last):
-  Task                          45 (was    22)  ↑ 105%
-  WebSearch                     12 (was     3)  ↑ 300%
+  Task                         218 (was    90)  ↑ 142%
+  Skill                         24 (was     7)  ↑ 243%
+  Read                        2126 (was  1084)  ↑ 96%
+  Edit                        1718 (was   818)  ↑ 110%
+  WebFetch                      60 (was   125)  ↓ 52%
 ```
 
 ## Cross-session synthesis
@@ -138,8 +182,42 @@ Tool trends (this week vs last):
 The most powerful feature. Ask a question, get a synthesized answer from across all your sessions.
 
 ```bash
-session-analyze synthesize "webhook error handling"
+session-analyze synthesize "form automation debugging"
 session-analyze synthesize "database migration patterns" --limit 5
+```
+
+**Output** (from a real synthesis across 5 sessions spanning 3 weeks):
+```
+Cross-session synthesis: "form automation debugging"
+==================================================
+
+Sources (5 sessions):
+  2026-01-10  Build automation system — initial 4-module architecture
+  2026-01-15  Form submission debugging — element selectors
+  2026-01-18  Breakthrough — synthetic events bypass framework
+  2026-01-20  Documentation + QA hardening
+  2026-02-01  Phase 2 — 14 files, 4,200 lines, QA swarm
+
+──────────────────────────────────────────────────
+
+**Approaches tried:** element.click() → failed (framework intercepts).
+Coordinate-based clicking → failed (dynamic elements). Synthetic
+MouseEvent dispatch → success (bypasses framework event handling).
+
+**What worked:** Native OS-level clicking for all button interaction.
+Key insight: submit button was a <div>, not a <button>. Persistent
+browser profiles for session continuity.
+
+**What failed:** All JavaScript-based clicking (framework intercepts
+and blocks). Manual fallback rejected as philosophy: "figure out how
+to automate it, not do it manually."
+
+**Recurring patterns:** Framework as persistent blocker. DOM inspection
+before strategy selection. Iterative QA hardening (20 rounds → swarm).
+Scaling from 4 modules → 14 files across 7 agents.
+
+**Current state:** Phase 2 complete. End-to-end test passed. 7-day
+autonomous validation running.
 ```
 
 This searches your sessions, extracts relevant conversation exchanges, and sends them to Claude Haiku for synthesis. Requires the `anthropic` package and an API key:
@@ -149,7 +227,7 @@ pip install claude-session-index[synthesis]
 export ANTHROPIC_API_KEY=sk-...
 ```
 
-**If you're already in a Claude Code session**, you can skip the API cost entirely. Use `/qq-search analyze "topic"` and Claude will search, extract, and synthesize using an in-session Haiku subagent — no external API call needed.
+**If you're already in a Claude Code session**, you can skip the API cost entirely. The skill instructs Claude to search, extract, and synthesize using an in-session Haiku subagent — no external API call needed.
 
 ---
 
