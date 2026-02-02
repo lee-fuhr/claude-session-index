@@ -1,7 +1,7 @@
 ---
 name: session-index
 description: Search, analyze, and synthesize across all your Claude Code sessions. Ask "what did I try last time?" and get answers with resume links.
-version: 0.3.0
+version: 0.3.1
 author: Lee Fuhr
 tags:
   - session-search
