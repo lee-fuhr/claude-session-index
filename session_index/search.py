@@ -25,6 +25,46 @@ except ImportError:
     import config
 
 
+def _escape_fts_query(query: str) -> str:
+    """Escape a user query for FTS5 MATCH safety.
+
+    Wraps each token in double quotes so periods, hyphens, and
+    reserved words (AND, OR, NOT, NEAR) are treated as literals.
+    If the user already quoted a phrase, leave it intact.
+    """
+    if not query or not query.strip():
+        return ""
+
+    tokens = []
+    i = 0
+    chars = query.strip()
+
+    while i < len(chars):
+        # Skip whitespace
+        if chars[i].isspace():
+            i += 1
+            continue
+
+        # Already-quoted phrase — preserve it verbatim
+        if chars[i] == '"':
+            end = chars.find('"', i + 1)
+            if end == -1:
+                # Unterminated quote — wrap the rest as a single token
+                tokens.append(f'"{chars[i + 1:]}"')
+                break
+            tokens.append(chars[i:end + 1])
+            i = end + 1
+        else:
+            # Unquoted token — collect until next whitespace or quote
+            start = i
+            while i < len(chars) and not chars[i].isspace() and chars[i] != '"':
+                i += 1
+            token = chars[start:i]
+            tokens.append(f'"{token}"')
+
+    return " ".join(tokens)
+
+
 class SessionSearch:
     def __init__(self, db_path: Path = None):
         self.db_path = db_path or config.get_db_path()
@@ -50,7 +90,7 @@ class SessionSearch:
             WHERE session_content MATCH ?
             ORDER BY rank
             LIMIT ?
-        """, (query, limit)).fetchall()
+        """, (_escape_fts_query(query), limit)).fetchall()
 
         results = []
         for row in rows:

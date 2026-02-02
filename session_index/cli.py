@@ -128,10 +128,14 @@ def main():
     raw_args = sys.argv[1:]
     if raw_args and raw_args[0] not in SUBCOMMANDS and not raw_args[0].startswith('-'):
         # Bare text = search. Rebuild as: search "the query" [flags]
+        # Once we hit a flag (starts with -), everything after is flags/values.
         query_parts = []
         flags = []
+        in_flags = False
         for arg in raw_args:
             if arg.startswith('-'):
+                in_flags = True
+            if in_flags:
                 flags.append(arg)
             else:
                 query_parts.append(arg)
