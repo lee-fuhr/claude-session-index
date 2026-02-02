@@ -237,12 +237,9 @@ class SessionIndexer:
                 title_display = summaries[0][:77] + '...'
             title = title_display
         elif not title_display and user_prompts:
-            # Use first substantial user message
-            first = user_prompts[0].strip().split('\n')[0][:80]
-            if len(first) > 10:
-                title_display = first
-                if len(user_prompts[0].strip().split('\n')[0]) > 80:
-                    title_display = first[:77] + '...'
+            # Use first substantial user message, skipping bad title candidates
+            title_display = self._pick_title_from_prompts(user_prompts)
+            if title_display:
                 title = title_display
 
         # Detect client from user prompts + file paths in tool calls
@@ -308,6 +305,27 @@ class SessionIndexer:
             'fts_content': fts_content,
             'topics': topic_entries,
         }
+
+    # First-line patterns that make bad auto-titles
+    _SKIP_TITLE_PREFIXES = (
+        '#',            # Markdown headers (## Curation Data, etc.)
+        'You are',      # Agent system prompts
+        'Caveat:',      # System caveats injected by hooks
+        'Explore the',  # Agent exploration prompts
+    )
+
+    def _pick_title_from_prompts(self, user_prompts: list) -> Optional[str]:
+        """Pick the best user message to use as auto-title, skipping system noise."""
+        for prompt in user_prompts[:5]:
+            first_line = prompt.strip().split('\n')[0].strip()
+            if len(first_line) <= 10:
+                continue
+            if any(first_line.startswith(p) for p in self._SKIP_TITLE_PREFIXES):
+                continue
+            if len(first_line) > 80:
+                return first_line[:77] + '...'
+            return first_line
+        return None
 
     def index_session(self, session_id: str = None, file_path: str = None) -> bool:
         """Index a single session. Provide either session_id or file_path."""
