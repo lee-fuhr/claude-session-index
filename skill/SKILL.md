@@ -1,17 +1,17 @@
 ---
 name: session-index
-description: Search, analyze, and synthesize across your Claude Code sessions
+description: Search, analyze, and synthesize across all your Claude Code sessions. Ask "what did I try last time?" and get answers with resume links.
 version: 0.2.0
-triggers:
-  - session search
-  - session history
-  - session analytics
-  - what sessions
-  - past conversations
-  - what have I tried
-  - what worked last time
-  - when did we discuss
-  - have we done this before
+author: Lee Fuhr
+tags:
+  - session-search
+  - session-history
+  - analytics
+  - memory
+  - productivity
+requires:
+  - python3
+  - pip
 ---
 
 # Session index skill
