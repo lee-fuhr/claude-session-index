@@ -36,26 +36,18 @@ That's it. Your sessions are now searchable.
 
 ---
 
-## Search
+## See it in action
 
-Full-text search across every user message in every session.
+All examples below are from a real system with 2,900+ indexed sessions.
 
+### "What sessions mention silent failures?"
+
+You type:
 ```bash
-# Search by content
-session-search search "deployment pipeline"
-
-# Filter by project, client, tool, date
-session-search find --client "Windmill Labs" --week
-session-search find --tool "Task" --project "my-app"
-
-# Recent sessions
-session-search recent 20
-
-# Show conversation context inline with results
-session-search search "auth bug" --context
+session-search search "silent failure"
 ```
 
-**Output** (from a real system with 2,900+ indexed sessions):
+You get:
 ```
 3 results for "silent failure":
 
@@ -71,42 +63,21 @@ session-search search "auth bug" --context
            claude --resume 7b22239e-9f90-466f-ad92-849840b2a6fd
 ```
 
-Each result shows the session title, metadata, matching snippet, topic timeline, and a ready-to-copy `claude --resume` command.
+Each result has a `claude --resume` command ready to copy — jump straight back into that session.
 
-### Search with inline context
+### "Show me what was actually said in that session"
 
-Add `--context` to see actual conversation exchanges right in the search results:
-
-```
-session-search search "silent failure" --context
-
-  a5b111c6  (unnamed)
-           2026-01-18 · my-project · 51 exchanges
-           ── 2026-01-18T04:55 ──
-           User: [session data about discovering a silent failure in background jobs]
-           Asst: Now let me check for any existing "silent failure" or
-                 "user feedback" patterns in the codebase...
-                 This is a new failure mode — appeared to work but didn't...
-```
-
-## Conversation context
-
-Read the actual conversation from any session — not just metadata, but what was said.
-
+You type:
 ```bash
-# Show exchanges matching a term
 session-analyze context a5b111c6 "failure"
-
-# Show all exchanges
-session-analyze context a5b111c6
 ```
 
-**Output** (from a real session):
+You get the actual conversation back:
 ```
 Session: Build automation debugging
   2026-01-20 · my-project · 96 exchanges · 7min
 
-Matching exchanges for "click":
+Matching exchanges for "failure":
 
 ── Exchange 1 2026-01-20T19:14 ──
   User: Breakthrough session. Successfully submitted forms #32 and #33
@@ -115,83 +86,69 @@ Matching exchanges for "click":
         class 'action-button', NOT a <button> tag.
   Assistant: I'll process these findings. Let me search for existing
         patterns related to the framework and event handling...
-        [Grep: angular|zone\.js|MouseEvent|click]
+        [Grep: framework|zone\.js|MouseEvent|click]
         [Read: /path/to/automation/docs.md]
 ```
 
-Tool calls are collapsed into readable one-liners: `[Read: path]`, `[Edit: path]`, `[Bash: command]`, `[Task: "description" → agent]`.
+Tool calls get collapsed into readable one-liners — `[Read: path]`, `[Edit: path]`, `[Bash: command]`, `[Task: "description" → agent]` — so you can follow the conversation without drowning in JSON.
 
-## Analytics
+### "How did I spend my week?"
 
-Understand how you spend your time. Pure SQL — no API calls, no cost.
-
+You type:
 ```bash
-session-analyze analytics              # all time
-session-analyze analytics --week       # this week
-session-analyze analytics --month      # this month
-session-analyze analytics --client X   # specific client
-session-analyze analytics --project X  # specific project
+session-analyze analytics --week
 ```
 
-**Output** (from a real system):
+You get:
 ```
 Session analytics (this week)
 ==================================================
 
-  89 sessions · 302.8h total · avg 204min/session · avg 340 exchanges · 20 compacted
+  89 sessions · 302.8h total · avg 204min/session · avg 340 exchanges
 
 Time per client:
   Windmill Labs                 2 sessions    47.7h  avg 250 exchanges
   GridSync                      2 sessions    17.2h  avg 269 exchanges
   NovaTech                      4 sessions     7.3h  avg 212 exchanges
 
-By project:
-  tools                        20 sessions   170.8h
-  consulting                    8 sessions    90.3h
-  personal                      5 sessions    31.0h
-
 Daily trend (last 14 days):
-  2026-01-19    5 sessions   50.0h  ████████████████████████████████████████
   2026-01-20   18 sessions   57.2h  ████████████████████████████████████████
   2026-01-21   16 sessions   76.0h  ████████████████████████████████████████
   2026-01-22    6 sessions    7.9h  ███████████████████████████████
   2026-01-28    8 sessions   50.1h  ████████████████████████████████████████
   2026-01-29   21 sessions   40.9h  ████████████████████████████████████████
   2026-01-30   16 sessions  122.2h  ████████████████████████████████████████
-  2026-01-31    7 sessions    5.0h  ████████████████████
   2026-02-01   18 sessions   34.5h  ████████████████████████████████████████
 
 Top tools:
   Bash                         3214 uses  (46 sessions)
   Read                         2126 uses  (83 sessions)
   Edit                         1718 uses  (71 sessions)
-  Grep                          785 uses  (66 sessions)
-  Write                         316 uses  (20 sessions)
   Task                          218 uses  (21 sessions)
 
 Tool trends (this week vs last):
   Task                         218 (was    90)  ↑ 142%
   Skill                         24 (was     7)  ↑ 243%
-  Read                        2126 (was  1084)  ↑ 96%
   Edit                        1718 (was   818)  ↑ 110%
   WebFetch                      60 (was   125)  ↓ 52%
 ```
 
-## Cross-session synthesis
+Filter by client (`--client "Windmill Labs"`), project (`--project myapp`), or time (`--month`).
 
-The most powerful feature. Ask a question, get a synthesized answer from across all your sessions.
+### "What have I tried for form automation? What actually worked?"
 
+You type:
 ```bash
 session-analyze synthesize "form automation debugging"
-session-analyze synthesize "database migration patterns" --limit 5
 ```
 
-**Output** (from a real synthesis across 5 sessions spanning 3 weeks):
+The tool searches your sessions, pulls out the relevant conversations, and synthesizes an answer across all of them:
+
 ```
 Cross-session synthesis: "form automation debugging"
 ==================================================
 
-Sources (5 sessions):
+Sources (5 sessions spanning 3 weeks):
   2026-01-10  Build automation system — initial 4-module architecture
   2026-01-15  Form submission debugging — element selectors
   2026-01-18  Breakthrough — synthetic events bypass framework
@@ -200,27 +157,29 @@ Sources (5 sessions):
 
 ──────────────────────────────────────────────────
 
-**Approaches tried:** element.click() → failed (framework intercepts).
+Approaches tried: element.click() → failed (framework intercepts).
 Coordinate-based clicking → failed (dynamic elements). Synthetic
 MouseEvent dispatch → success (bypasses framework event handling).
 
-**What worked:** Native OS-level clicking for all button interaction.
+What worked: Native OS-level clicking for all button interaction.
 Key insight: submit button was a <div>, not a <button>. Persistent
 browser profiles for session continuity.
 
-**What failed:** All JavaScript-based clicking (framework intercepts
+What failed: All JavaScript-based clicking (framework intercepts
 and blocks). Manual fallback rejected as philosophy: "figure out how
 to automate it, not do it manually."
 
-**Recurring patterns:** Framework as persistent blocker. DOM inspection
+Recurring patterns: Framework as persistent blocker. DOM inspection
 before strategy selection. Iterative QA hardening (20 rounds → swarm).
 Scaling from 4 modules → 14 files across 7 agents.
 
-**Current state:** Phase 2 complete. End-to-end test passed. 7-day
+Current state: Phase 2 complete. End-to-end test passed. 7-day
 autonomous validation running.
 ```
 
-This searches your sessions, extracts relevant conversation exchanges, and sends them to Claude Haiku for synthesis. Requires the `anthropic` package and an API key:
+That answer was synthesized from 5 different sessions spanning 3 weeks. Each source session has a `claude --resume` link so you can jump back into any of them.
+
+Synthesis requires the `anthropic` package and an API key for standalone CLI use:
 
 ```bash
 pip install claude-session-index[synthesis]
@@ -228,6 +187,23 @@ export ANTHROPIC_API_KEY=sk-...
 ```
 
 **If you're already in a Claude Code session**, you can skip the API cost entirely. The skill instructs Claude to search, extract, and synthesize using an in-session Haiku subagent — no external API call needed.
+
+---
+
+## All the ways to search
+
+```bash
+session-search search "query"              # full-text search
+session-search search "query" --context    # with conversation excerpts inline
+session-search find --client "Acme"        # filter by client
+session-search find --tool Task --week     # filter by tool + date
+session-search find --project myapp        # filter by project
+session-search recent 20                   # last N sessions
+session-search topics <session_id>         # topic timeline for a session
+session-search tools                       # top tools across all sessions
+session-search tools "Bash"                # sessions using a specific tool
+session-search stats                       # database overview
+```
 
 ---
 
