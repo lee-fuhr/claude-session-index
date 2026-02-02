@@ -1,7 +1,7 @@
 ---
 name: session-index
 description: Search, analyze, and synthesize across your Claude Code sessions
-version: 0.1.0
+version: 0.2.0
 triggers:
   - session search
   - session history
@@ -22,36 +22,36 @@ You have access to a session index that catalogs all Claude Code sessions — se
 Find past sessions by topic, client, tool, or date range.
 
 ```bash
-session-search search "deployment debugging"
-session-search find --client "Acme" --week
-session-search recent 20
-session-search stats
+sessions "deployment debugging"
+sessions find --client "Acme" --week
+sessions recent 20
+sessions stats
 ```
 
 ### View conversation context
 Read the actual conversation (user + assistant exchanges) from any session.
 
 ```bash
-session-analyze context <session_id> "search term"
-session-analyze context <session_id>   # all exchanges
+sessions context <session_id> "search term"
+sessions context <session_id>   # all exchanges
 ```
 
 ### Analytics
 See effort distribution, tool trends, and session patterns. Pure SQL, no API calls.
 
 ```bash
-session-analyze analytics                    # overall
-session-analyze analytics --client "Acme"    # per client
-session-analyze analytics --week             # this week
-session-analyze analytics --month            # this month
+sessions analytics                    # overall
+sessions analytics --client "Acme"    # per client
+sessions analytics --week             # this week
+sessions analytics --month            # this month
 ```
 
 ### Cross-session synthesis
 Answer questions like "What have I tried for X?" by searching across sessions and synthesizing the answer. Use a Haiku subagent (via Task tool with `model="haiku"`) to keep costs within the Claude Code subscription — no external API needed.
 
 **Workflow for synthesis:**
-1. Run `session-search search "TOPIC" -n 10` to find matching sessions
-2. For the top 3-5 results, run `session-analyze context <session_id> "TOPIC" -n 3` to extract relevant exchanges
+1. Run `sessions "TOPIC" -n 10` to find matching sessions
+2. For the top 3-5 results, run `sessions context <session_id> "TOPIC" -n 3` to extract relevant exchanges
 3. Spawn a Task with `model="haiku"` to synthesize the collected excerpts:
    - What approaches were tried?
    - What worked / what failed?
@@ -63,7 +63,7 @@ Answer questions like "What have I tried for X?" by searching across sessions an
 
 ```bash
 pip install claude-session-index
-session-index --backfill   # Index existing sessions (one-time)
+sessions "test query"   # indexes automatically on first run
 ```
 
 ## Data location

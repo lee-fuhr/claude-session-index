@@ -30,6 +30,7 @@ classifiers = [
 synthesis = ["anthropic>=0.30.0"]
 
 [project.scripts]
+sessions = "session_index.cli:main"
 session-index = "session_index.indexer:main"
 session-search = "session_index.search:main"
 session-analyze = "session_index.analyzer:main"
